@@ -10,7 +10,6 @@ requires-python = ">=3.10"
 dependencies = [
     "hid-interceptor",
     "pydantic>=2.12.3",
-    "pydantic-extra-types>=2.10.6",
     "python-ulid[pydantic]>=3.1.0",
 ]
 
@@ -26,7 +25,7 @@ hid-recorder = "hid_recorder.cli:main"
 
 [tool.ruff]
 indent-width = 4
-target-version = "py312"
+target-version = "py310"
 line-length = 88
 
 [tool.ruff.lint]
@@ -53,7 +52,7 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.10"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
@@ -89,6 +88,7 @@ dev = [
     "mypy>=1.18.2",
     "nox>=2025.10.16",
     "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
     "ruff>=0.14.2",
