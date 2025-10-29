@@ -123,7 +123,16 @@ class Recorder:
 
     This class provides a high-level interface for managing recording sessions
     and retrieving recorded events. It follows the Facade Pattern to hide
-    complexity from users.
+    complexity from calling code.
+
+    Note:
+        This class is stateful. An instance of this class holds a reference to
+        the currently active session ID (`_active_session_id`). This is used by
+        the hook created via `create_hook()` to automatically record events to
+        the correct session. While the `session()` async context manager handles
+        this lifecycle automatically, if you are managing multiple concurrent
+        sessions manually, it is recommended to use a separate `Recorder`
+        instance for each concurrent task to avoid race conditions.
 
     Attributes:
         db_path: Path to the SQLite database file.

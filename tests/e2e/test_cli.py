@@ -11,6 +11,7 @@ import pytest
 from ulid import ULID
 
 import hid_recorder
+from hid_recorder.database import DatabaseManager
 
 
 @pytest.fixture
@@ -24,39 +25,16 @@ def cli_executable_path() -> Path:
 
 @pytest.fixture
 def test_db(tmp_path: Path) -> Path:
-    """Create a test database with sample sessions using direct SQL."""
+    """Create a test database with sample sessions."""
     db_path = tmp_path / "test.db"
 
-    # Create database schema directly with SQL
-    conn = sqlite3.connect(str(db_path))
-    conn.execute("PRAGMA foreign_keys = ON")
+    # Use the application's own schema initializer
+    db_manager = DatabaseManager(str(db_path))
+    db_manager.initialize()
 
-    # Create tables
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS sessions (
-            session_id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            started_at TEXT NOT NULL,
-            ended_at TEXT,
-            metadata TEXT NOT NULL
-        )
-    """)
-
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS events (
-            event_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT NOT NULL,
-            timestamp REAL NOT NULL,
-            device TEXT NOT NULL,
-            kind TEXT NOT NULL,
-            code INTEGER NOT NULL,
-            code_name TEXT NOT NULL,
-            value INTEGER NOT NULL,
-            FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
-        )
-    """)
-
-    # Insert test sessions directly with SQL
+    # Insert test sessions directly with SQL.
+    # Enable type detection so the registered datetime adapter is used.
+    conn = sqlite3.connect(str(db_path), detect_types=sqlite3.PARSE_DECLTYPES)
     now = datetime.now(timezone.utc)
     session1_id = str(ULID())
     session2_id = str(ULID())
@@ -69,8 +47,8 @@ def test_db(tmp_path: Path) -> Path:
         (
             session1_id,
             "test_session_1",
-            now.isoformat(),
-            now.isoformat(),  # Ended session
+            now,
+            now,  # Ended session
             json.dumps({"type": "test"}),
         ),
     )
@@ -83,7 +61,7 @@ def test_db(tmp_path: Path) -> Path:
         (
             session2_id,
             "test_session_2",
-            now.isoformat(),
+            now,
             None,  # Active session
             json.dumps({"type": "demo"}),
         ),

@@ -1,8 +1,26 @@
 """Database connection and schema management."""
 
 import sqlite3
+from datetime import datetime, timezone
 from threading import RLock
 from types import TracebackType
+
+# Register adapters for robust timezone-aware datetime handling.
+# Store datetimes as UTC unix timestamps (float), retrieve as timezone-aware objects.
+
+
+def adapt_datetime_to_timestamp(dt_obj: datetime) -> float:
+    """Adapt datetime object to a unix timestamp float."""
+    return dt_obj.timestamp()
+
+
+def convert_timestamp_to_datetime(ts_bytes: bytes) -> datetime:
+    """Convert a unix timestamp stored as bytes to a timezone-aware datetime object."""
+    return datetime.fromtimestamp(float(ts_bytes), tz=timezone.utc)
+
+
+sqlite3.register_adapter(datetime, adapt_datetime_to_timestamp)
+sqlite3.register_converter("timestamp", convert_timestamp_to_datetime)
 
 
 class DatabaseManager:
@@ -98,7 +116,11 @@ class DatabaseManager:
             SQLite database connection.
         """
         if self._conn is None:
-            self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self._conn = sqlite3.connect(
+                self.db_path,
+                detect_types=sqlite3.PARSE_DECLTYPES,
+                check_same_thread=False,
+            )
             # Enable foreign keys for this connection
             self._conn.execute("PRAGMA foreign_keys = ON")
         return self._conn

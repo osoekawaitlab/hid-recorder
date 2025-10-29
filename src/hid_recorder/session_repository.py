@@ -44,8 +44,8 @@ class SessionRepository:
                 (
                     str(session.session_id),
                     session.name,
-                    session.started_at.isoformat(),
-                    session.ended_at.isoformat() if session.ended_at else None,
+                    session.started_at,
+                    session.ended_at,
                     json.dumps(session.metadata),
                 ),
             )
@@ -89,7 +89,7 @@ class SessionRepository:
                 SET ended_at = ?
                 WHERE session_id = ?
                 """,
-                (ended_at.isoformat(), str(session_id)),
+                (ended_at, str(session_id)),
             )
 
     def list_all(self) -> list[Session]:
@@ -179,12 +179,12 @@ class SessionRepository:
         Returns:
             Session object constructed from the row data.
         """
-        session_id_str, name, started_at_str, ended_at_str, metadata_str = row
+        session_id_str, name, started_at, ended_at, metadata_str = row
 
         return Session(
             session_id=ULID.from_str(session_id_str),
             name=name,
-            started_at=datetime.fromisoformat(started_at_str),
-            ended_at=(datetime.fromisoformat(ended_at_str) if ended_at_str else None),
+            started_at=started_at,
+            ended_at=ended_at,
             metadata=json.loads(metadata_str),
         )

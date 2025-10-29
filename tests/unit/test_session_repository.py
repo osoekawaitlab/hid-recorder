@@ -107,7 +107,7 @@ class TestSessionRepository:
         retrieved = repository.get(session_id)
         assert retrieved is not None
         assert retrieved.ended_at is not None
-        assert retrieved.ended_at == ended_at
+        assert retrieved.ended_at.timestamp() == pytest.approx(ended_at.timestamp())
 
     def test_list_all_sessions(self, repository: SessionRepository) -> None:
         """Test listing all sessions."""

@@ -64,10 +64,3 @@ def check_all(session: nox.Session) -> None:
     session.run("pytest")
     session.run("mypy", "src/", "tests/")
     session.run("ruff", "check", ".")
-
-
-@nox.session(python="3.12")
-def docs_build(session: nox.Session) -> None:
-    """Build documentation."""
-    session.install("-e", ".", "--group=docs", "--group=dev")
-    session.run("mkdocs", "build", "--strict")
