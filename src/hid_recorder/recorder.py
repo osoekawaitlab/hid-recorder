@@ -14,7 +14,7 @@ from ulid import ULID
 from hid_recorder.database import DatabaseManager
 from hid_recorder.event_converter import convert_input_event_to_event
 from hid_recorder.event_repository import EventRepository
-from hid_recorder.models import Event, Session
+from hid_recorder.models import EventItem, Session
 from hid_recorder.session_repository import SessionRepository
 
 if TYPE_CHECKING:
@@ -59,7 +59,7 @@ class SessionHandle:
         if self._closed:
             return
         self._closed = True
-        self._recorder.end_session(self.session.session_id)
+        self._recorder.end_session(self.session.id)
 
     async def __aenter__(self) -> Self:
         """Return the handle when entering an async context block."""
@@ -165,14 +165,14 @@ class Recorder:
             The created Session object with a unique session_id (ULID).
         """
         session = Session(
-            session_id=ULID(),
+            id=ULID(),
             name=name,
             started_at=datetime.now(timezone.utc),
             ended_at=None,
             metadata=metadata or {},
         )
         self._session_repo.create(session)
-        self._active_session_id = session.session_id
+        self._active_session_id = session.id
         return session
 
     def end_session(self, session_id: ULID) -> None:
@@ -218,7 +218,7 @@ class Recorder:
         session_id: ULID,
         device_filter: str | None = None,
         kind_filter: str | None = None,
-    ) -> list[Event]:
+    ) -> list[EventItem]:
         """Retrieve events for a session.
 
         Args:

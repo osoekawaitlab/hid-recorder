@@ -3,10 +3,11 @@
 from datetime import datetime, timezone
 
 import pytest
+from hid_interceptor.models import KeyEvent
 from pydantic import ValidationError
 from ulid import ULID
 
-from hid_recorder.models import Event, Session
+from hid_recorder.models import EventItem, Session
 
 
 class TestSession:
@@ -19,14 +20,14 @@ class TestSession:
         started_at = datetime.now(timezone.utc)
 
         session = Session(
-            session_id=session_id,
+            id=session_id,
             name=name,
             started_at=started_at,
             ended_at=None,
             metadata={},
         )
 
-        assert session.session_id == session_id
+        assert session.id == session_id
         assert session.name == name
         assert session.started_at == started_at
         assert session.ended_at is None
@@ -38,7 +39,7 @@ class TestSession:
         metadata = {"device": "custom_keyboard", "version": "1.0.0"}
 
         session = Session(
-            session_id=session_id,
+            id=session_id,
             name="test",
             started_at=datetime.now(timezone.utc),
             ended_at=None,
@@ -50,7 +51,7 @@ class TestSession:
     def test_session_is_active_when_not_ended(self) -> None:
         """Test that session is active when ended_at is None."""
         session = Session(
-            session_id=ULID(),
+            id=ULID(),
             name="test",
             started_at=datetime.now(timezone.utc),
             ended_at=None,
@@ -65,7 +66,7 @@ class TestSession:
         ended_at = datetime.now(timezone.utc)
 
         session = Session(
-            session_id=ULID(),
+            id=ULID(),
             name="test",
             started_at=started_at,
             ended_at=ended_at,
@@ -77,7 +78,7 @@ class TestSession:
     def test_session_duration_is_none_when_active(self) -> None:
         """Test that duration is None when session is still active."""
         session = Session(
-            session_id=ULID(),
+            id=ULID(),
             name="test",
             started_at=datetime.now(timezone.utc),
             ended_at=None,
@@ -93,7 +94,7 @@ class TestSession:
         expected_duration_seconds = 5.0
 
         session = Session(
-            session_id=ULID(),
+            id=ULID(),
             name="test",
             started_at=started_at,
             ended_at=ended_at,
@@ -105,7 +106,7 @@ class TestSession:
     def test_session_is_immutable(self) -> None:
         """Test that Session is immutable (frozen)."""
         session = Session(
-            session_id=ULID(),
+            id=ULID(),
             name="test",
             started_at=datetime.now(timezone.utc),
             ended_at=None,
@@ -125,61 +126,44 @@ class TestEvent:
         session_id = ULID()
         timestamp = 1234567890.123456
         device = "/dev/input/event0"
-        kind = "KEY"
         code = 30
         code_name = "KEY_A"
         value = 1
-
-        event = Event(
-            event_id=event_id,
-            session_id=session_id,
+        key_event = KeyEvent(
             timestamp=timestamp,
             device=device,
-            kind=kind,
             code=code,
             code_name=code_name,
             value=value,
         )
 
-        assert event.event_id == event_id
-        assert event.session_id == session_id
-        assert event.timestamp == timestamp
-        assert event.device == device
-        assert event.kind == kind
-        assert event.code == code
-        assert event.code_name == code_name
-        assert event.value == value
-
-    def test_create_event_without_event_id(self) -> None:
-        """Test creating an event with ULID event_id."""
-        session_id = ULID()
-        event_id = ULID()
-
-        event = Event(
-            event_id=event_id,
+        event = EventItem(
+            id=event_id,
             session_id=session_id,
-            timestamp=1234567890.0,
-            device="/dev/input/event0",
-            kind="KEY",
-            code=30,
-            code_name="KEY_A",
-            value=1,
+            event=key_event,
         )
 
-        assert event.event_id == event_id
+        assert event.id == event_id
+        assert event.session_id == session_id
+        assert event.event.timestamp == timestamp
+        assert event.event.device == device
+        assert event.event.code == code
+        assert event.event.code_name == code_name
+        assert event.event.value == value
 
     def test_event_is_immutable(self) -> None:
         """Test that Event is immutable (frozen)."""
-        event = Event(
-            event_id=ULID(),
+        event = EventItem(
+            id=ULID(),
             session_id=ULID(),
-            timestamp=1234567890.0,
-            device="/dev/input/event0",
-            kind="KEY",
-            code=30,
-            code_name="KEY_A",
-            value=1,
+            event=KeyEvent(
+                timestamp=1234567890.0,
+                device="/dev/input/event0",
+                code=30,
+                code_name="KEY_A",
+                value=1,
+            ),
         )
 
         with pytest.raises(ValidationError):
-            event.value = 0
+            event.session_id = ULID()

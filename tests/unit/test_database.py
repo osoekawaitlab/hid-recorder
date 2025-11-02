@@ -44,7 +44,7 @@ class TestDatabaseManager:
             cursor = conn.execute("PRAGMA table_info(sessions)")
             columns = {row[1]: row[2] for row in cursor.fetchall()}
             expected_columns = {
-                "session_id": "TEXT",
+                "id": "TEXT",
                 "name": "TEXT",
                 "started_at": "TIMESTAMP",
                 "ended_at": "TIMESTAMP",
@@ -72,7 +72,7 @@ class TestDatabaseManager:
             cursor = conn.execute("PRAGMA table_info(events)")
             columns = {row[1]: row[2] for row in cursor.fetchall()}
             expected_columns = {
-                "event_id": "TEXT",
+                "id": "TEXT",
                 "session_id": "TEXT",
                 "timestamp": "REAL",
                 "device": "TEXT",
@@ -118,7 +118,7 @@ class TestDatabaseManager:
             # fk_info format: [id, seq, table, from, to, on_update, on_delete, match]
             assert fk_info[0][2] == "sessions"  # references sessions table
             assert fk_info[0][3] == "session_id"  # from column
-            assert fk_info[0][4] == "session_id"  # to column
+            assert fk_info[0][4] == "id"  # to column
             assert fk_info[0][6] == "CASCADE"  # on_delete CASCADE
 
     def test_initialize_is_idempotent(self, tmp_path: Path) -> None:
@@ -175,16 +175,14 @@ class TestDatabaseManager:
         with manager as conn:
             conn.execute(
                 "INSERT INTO sessions "
-                "(session_id, name, started_at, ended_at, metadata) "
+                "(id, name, started_at, ended_at, metadata) "
                 "VALUES (?, ?, datetime('now'), NULL, '{}')",
                 (session_id, "test"),
             )
 
         # Verify data was committed
         with sqlite3.connect(str(db_path)) as conn:
-            cursor = conn.execute(
-                "SELECT session_id FROM sessions WHERE session_id = ?", (session_id,)
-            )
+            cursor = conn.execute("SELECT id FROM sessions WHERE id = ?", (session_id,))
             result = cursor.fetchone()
             assert result is not None
             assert result[0] == session_id
@@ -203,7 +201,7 @@ class TestDatabaseManager:
             with manager as conn:
                 conn.execute(
                     "INSERT INTO sessions "
-                    "(session_id, name, started_at, ended_at, metadata) "
+                    "(id, name, started_at, ended_at, metadata) "
                     "VALUES (?, ?, datetime('now'), NULL, '{}')",
                     (session_id, "test"),
                 )
@@ -214,8 +212,6 @@ class TestDatabaseManager:
 
         # Verify data was rolled back
         with sqlite3.connect(str(db_path)) as conn:
-            cursor = conn.execute(
-                "SELECT session_id FROM sessions WHERE session_id = ?", (session_id,)
-            )
+            cursor = conn.execute("SELECT id FROM sessions WHERE id = ?", (session_id,))
             result = cursor.fetchone()
             assert result is None

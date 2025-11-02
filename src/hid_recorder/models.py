@@ -2,6 +2,7 @@
 
 from datetime import datetime
 
+from hid_interceptor import InputEvent
 from pydantic import BaseModel, ConfigDict
 from ulid import ULID
 
@@ -13,7 +14,7 @@ class Session(BaseModel):
     to a single test execution or recording period.
 
     Attributes:
-        session_id: Unique identifier for the session (ULID).
+        id: Unique identifier for the session (ULID).
         name: Human-readable name for the session.
         started_at: Timestamp when the session started.
         ended_at: Timestamp when the session ended (None if still active).
@@ -22,7 +23,7 @@ class Session(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    session_id: ULID
+    id: ULID
     name: str
     started_at: datetime
     ended_at: datetime | None
@@ -49,29 +50,19 @@ class Session(BaseModel):
         return (self.ended_at - self.started_at).total_seconds()
 
 
-class Event(BaseModel):
-    """HID event within a recording session.
+class EventItem(BaseModel):
+    """HID event item within a recording session.
 
     Represents a single HID input event captured from hid-interceptor.
 
     Attributes:
-        event_id: Unique identifier for the event (ULID).
+        id: Unique identifier for the event (ULID).
         session_id: ID of the session this event belongs to (ULID).
-        timestamp: Event timestamp (seconds since epoch with microsecond precision).
-        device: Device path (e.g., /dev/input/event0).
-        kind: Event kind (KEY, REL, or ABS).
-        code: Raw event code.
-        code_name: Human-readable event code name.
-        value: Event value.
+        event: The actual HID input event data (InputEvent).
     """
 
     model_config = ConfigDict(frozen=True)
 
-    event_id: ULID
+    id: ULID
     session_id: ULID
-    timestamp: float
-    device: str
-    kind: str
-    code: int
-    code_name: str
-    value: int
+    event: InputEvent

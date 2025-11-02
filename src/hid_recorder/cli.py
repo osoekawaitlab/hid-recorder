@@ -15,7 +15,7 @@ def cmd_list_sessions(args: Namespace) -> None:
     if args.format == "json":
         output = [
             {
-                "session_id": str(session.session_id),
+                "session_id": str(session.id),
                 "name": session.name,
                 "started_at": session.started_at.isoformat(),
                 "ended_at": session.ended_at.isoformat() if session.ended_at else None,
@@ -29,7 +29,7 @@ def cmd_list_sessions(args: Namespace) -> None:
         # Simple text format
         for session in sessions:
             status = "ACTIVE" if session.is_active else "ENDED"
-            sys.stdout.write(f"{session.session_id} | {session.name} | {status}\n")
+            sys.stdout.write(f"{session.id} | {session.name} | {status}\n")
 
 
 def main() -> None:

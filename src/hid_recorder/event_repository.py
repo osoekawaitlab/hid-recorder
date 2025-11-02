@@ -1,9 +1,11 @@
 """Repository for Event domain model CRUD operations."""
 
+from sqlite3 import Row
+
 from ulid import ULID
 
 from hid_recorder.database import DatabaseManager
-from hid_recorder.models import Event
+from hid_recorder.models import EventItem
 
 
 class EventRepository:
@@ -24,42 +26,42 @@ class EventRepository:
         """
         self.db_manager = db_manager
 
-    def create(self, event: Event) -> ULID:
+    def create(self, event: EventItem) -> ULID:
         """Create a new event in the database.
 
         Args:
             event: Event object to persist (with pre-generated ULID).
 
         Returns:
-            The event_id (ULID) of the created event.
+            The id (ULID) of the created event.
         """
         with self.db_manager as conn:
             conn.execute(
                 """
                 INSERT INTO events
-                    (event_id, session_id, timestamp, device, kind, code,
+                    (id, session_id, timestamp, device, kind, code,
                      code_name, value)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    str(event.event_id),
+                    str(event.id),
                     str(event.session_id),
-                    event.timestamp,
-                    event.device,
-                    event.kind,
-                    event.code,
-                    event.code_name,
-                    event.value,
+                    event.event.timestamp,
+                    event.event.device,
+                    event.event.kind,
+                    event.event.code,
+                    event.event.code_name,
+                    event.event.value,
                 ),
             )
-        return event.event_id
+        return event.id
 
     def get_by_session(
         self,
         session_id: ULID,
         device_filter: str | None = None,
         kind_filter: str | None = None,
-    ) -> list[Event]:
+    ) -> list[EventItem]:
         """Retrieve all events for a session, with optional filtering.
 
         Args:
@@ -71,7 +73,7 @@ class EventRepository:
             List of Event objects, ordered by timestamp.
         """
         query = """
-            SELECT event_id, session_id, timestamp, device, kind, code, code_name, value
+            SELECT id, session_id, timestamp, device, kind, code, code_name, value
             FROM events
             WHERE session_id = ?
         """
@@ -115,34 +117,21 @@ class EventRepository:
 
         return result[0] if result else 0
 
-    def _row_to_event(self, row: tuple) -> Event:  # type: ignore[type-arg]
-        """Convert a database row to an Event object.
+    def _row_to_event(self, row: Row) -> EventItem:
+        """Convert a database row to an EventItem object.
 
         Args:
-            row: Database row tuple
-                (event_id, session_id, timestamp, device, kind, code, code_name, value).
+            row: Database row
+                (id, session_id, timestamp, device, kind, code, code_name, value).
 
         Returns:
-            Event object constructed from the row data.
+            EventItem object constructed from the row data.
         """
-        (
-            event_id_str,
-            session_id_str,
-            timestamp,
-            device,
-            kind,
-            code,
-            code_name,
-            value,
-        ) = row
-
-        return Event(
-            event_id=ULID.from_str(event_id_str),
-            session_id=ULID.from_str(session_id_str),
-            timestamp=timestamp,
-            device=device,
-            kind=kind,
-            code=code,
-            code_name=code_name,
-            value=value,
+        temp = dict(row)
+        id_ = temp["id"]
+        session_id = temp["session_id"]
+        del temp["id"]
+        del temp["session_id"]
+        return EventItem.model_validate(
+            {"id": id_, "session_id": session_id, "event": temp}
         )

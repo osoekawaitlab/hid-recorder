@@ -41,7 +41,7 @@ def test_db(tmp_path: Path) -> Path:
 
     conn.execute(
         """
-        INSERT INTO sessions (session_id, name, started_at, ended_at, metadata)
+        INSERT INTO sessions (id, name, started_at, ended_at, metadata)
         VALUES (?, ?, ?, ?, ?)
         """,
         (
@@ -55,7 +55,7 @@ def test_db(tmp_path: Path) -> Path:
 
     conn.execute(
         """
-        INSERT INTO sessions (session_id, name, started_at, ended_at, metadata)
+        INSERT INTO sessions (id, name, started_at, ended_at, metadata)
         VALUES (?, ?, ?, ?, ?)
         """,
         (

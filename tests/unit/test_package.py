@@ -3,7 +3,7 @@
 import re
 
 import hid_recorder
-from hid_recorder.models import Event, Session
+from hid_recorder.models import EventItem, Session
 from hid_recorder.recorder import Recorder
 
 
@@ -33,8 +33,10 @@ def test_session_exported() -> None:
     assert hid_recorder.Session is Session
 
 
-def test_event_exported() -> None:
+def test_event_item_exported() -> None:
     """Test that Event model is exported."""
-    assert hasattr(hid_recorder, "Event"), "Event model not found in hid_recorder"
+    assert hasattr(hid_recorder, "EventItem"), (
+        "EventItem model not found in hid_recorder"
+    )
     # Verify it's the correct class
-    assert hid_recorder.Event is Event
+    assert hid_recorder.EventItem is EventItem

@@ -62,7 +62,7 @@ class DatabaseManager:
         # Create sessions table
         conn.execute("""
             CREATE TABLE IF NOT EXISTS sessions (
-                session_id TEXT PRIMARY KEY,
+                id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 started_at TIMESTAMP NOT NULL,
                 ended_at TIMESTAMP,
@@ -74,7 +74,7 @@ class DatabaseManager:
         # Create events table
         conn.execute("""
             CREATE TABLE IF NOT EXISTS events (
-                event_id TEXT PRIMARY KEY,
+                id TEXT PRIMARY KEY,
                 session_id TEXT NOT NULL,
                 timestamp REAL NOT NULL,
                 device TEXT NOT NULL,
@@ -83,7 +83,7 @@ class DatabaseManager:
                 code_name TEXT NOT NULL,
                 value INTEGER NOT NULL,
                 FOREIGN KEY (session_id)
-                    REFERENCES sessions(session_id)
+                    REFERENCES sessions(id)
                     ON DELETE CASCADE
             )
         """)
@@ -133,6 +133,7 @@ class DatabaseManager:
         """
         self._lock.acquire()
         self._conn = self.get_connection()
+        self._conn.row_factory = sqlite3.Row
         return self._conn
 
     def __exit__(

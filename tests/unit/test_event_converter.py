@@ -1,6 +1,6 @@
 """Test event conversion from hid-interceptor InputEvent to our Event model."""
 
-from hid_interceptor.models import AbsEvent, KeyEvent, RelEvent
+from hid_interceptor.models import AbsEvent, InputKind, KeyEvent, RelEvent
 from ulid import ULID
 
 from hid_recorder.event_converter import convert_input_event_to_event
@@ -26,13 +26,14 @@ class TestEventConverter:
         event = convert_input_event_to_event(input_event, session_id)
 
         assert event.session_id == session_id
-        assert event.timestamp == expected_timestamp
-        assert event.device == "/dev/input/event0"
-        assert event.kind == "KEY"
-        assert event.code == expected_code
-        assert event.code_name == "KEY_A"
-        assert event.value == 1
-        assert isinstance(event.event_id, ULID)  # ULID is auto-generated
+        assert isinstance(event.event, KeyEvent)
+        assert event.event.timestamp == expected_timestamp
+        assert event.event.device == "/dev/input/event0"
+        assert event.event.kind == InputKind.KEY
+        assert event.event.code == expected_code
+        assert event.event.code_name == "KEY_A"
+        assert event.event.value == 1
+        assert isinstance(event.id, ULID)  # ULID is auto-generated
 
     def test_convert_rel_event(self) -> None:
         """Test converting a RelEvent from hid-interceptor."""
@@ -50,9 +51,10 @@ class TestEventConverter:
         event = convert_input_event_to_event(input_event, session_id)
 
         assert event.session_id == session_id
-        assert event.kind == "REL"
-        assert event.code_name == "REL_X"
-        assert event.value == expected_value
+        assert isinstance(event.event, RelEvent)
+        assert event.event.kind == InputKind.REL
+        assert event.event.code_name == "REL_X"
+        assert event.event.value == expected_value
 
     def test_convert_abs_event(self) -> None:
         """Test converting an AbsEvent from hid-interceptor."""
@@ -70,9 +72,10 @@ class TestEventConverter:
         event = convert_input_event_to_event(input_event, session_id)
 
         assert event.session_id == session_id
-        assert event.kind == "ABS"
-        assert event.code_name == "ABS_X"
-        assert event.value == expected_value
+        assert isinstance(event.event, AbsEvent)
+        assert event.event.kind == InputKind.ABS
+        assert event.event.code_name == "ABS_X"
+        assert event.event.value == expected_value
 
     def test_convert_event_preserves_all_fields(self) -> None:
         """Test that conversion preserves all InputEvent fields."""
@@ -88,12 +91,12 @@ class TestEventConverter:
         event = convert_input_event_to_event(input_event, session_id)
 
         # Verify all fields are preserved
-        assert event.device == input_event.device
-        assert event.timestamp == input_event.timestamp
-        assert event.code == input_event.code
-        assert event.code_name == input_event.code_name
-        assert event.value == input_event.value
-        assert event.kind == input_event.kind.value
+        assert event.event.device == input_event.device
+        assert event.event.timestamp == input_event.timestamp
+        assert event.event.code == input_event.code
+        assert event.event.code_name == input_event.code_name
+        assert event.event.value == input_event.value
+        assert event.event.kind == input_event.kind.value
         assert event.session_id == session_id
 
     def test_convert_with_string_kind(self) -> None:
@@ -109,5 +112,5 @@ class TestEventConverter:
 
         event = convert_input_event_to_event(input_event, session_id)
 
-        assert isinstance(event.kind, str)
-        assert event.kind == "KEY"
+        assert isinstance(event.event.kind, str)
+        assert event.event.kind == "KEY"

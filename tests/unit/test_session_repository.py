@@ -37,7 +37,7 @@ class TestSessionRepository:
         metadata = {"device": "keyboard", "version": "1.0"}
 
         session = Session(
-            session_id=session_id,
+            id=session_id,
             name=name,
             started_at=started_at,
             ended_at=None,
@@ -49,7 +49,7 @@ class TestSessionRepository:
         # Verify session was created
         with db_manager as conn:
             cursor = conn.execute(
-                "SELECT session_id, name, ended_at FROM sessions WHERE session_id = ?",
+                "SELECT id, name, ended_at FROM sessions WHERE id = ?",
                 (str(session_id),),
             )
             result = cursor.fetchone()
@@ -62,7 +62,7 @@ class TestSessionRepository:
         """Test retrieving a session by ID."""
         session_id = ULID()
         session = Session(
-            session_id=session_id,
+            id=session_id,
             name="test_session",
             started_at=datetime.now(timezone.utc),
             ended_at=None,
@@ -73,7 +73,7 @@ class TestSessionRepository:
         # Retrieve the session
         retrieved = repository.get(session_id)
         assert retrieved is not None
-        assert retrieved.session_id == session_id
+        assert retrieved.id == session_id
         assert retrieved.name == "test_session"
         assert retrieved.ended_at is None
         assert retrieved.metadata == {"key": "value"}
@@ -91,7 +91,7 @@ class TestSessionRepository:
         session_id = ULID()
         started_at = datetime.now(timezone.utc)
         session = Session(
-            session_id=session_id,
+            id=session_id,
             name="test_session",
             started_at=started_at,
             ended_at=None,
@@ -115,14 +115,14 @@ class TestSessionRepository:
         session2_id = ULID()
 
         session1 = Session(
-            session_id=session1_id,
+            id=session1_id,
             name="session_1",
             started_at=datetime.now(timezone.utc),
             ended_at=None,
             metadata={},
         )
         session2 = Session(
-            session_id=session2_id,
+            id=session2_id,
             name="session_2",
             started_at=datetime.now(timezone.utc),
             ended_at=None,
@@ -136,7 +136,7 @@ class TestSessionRepository:
         expected_session_count = 2
         sessions = repository.list_all()
         assert len(sessions) == expected_session_count
-        session_ids = {s.session_id for s in sessions}
+        session_ids = {s.id for s in sessions}
         assert session1_id in session_ids
         assert session2_id in session_ids
 
@@ -146,14 +146,14 @@ class TestSessionRepository:
         ended_id = ULID()
 
         active_session = Session(
-            session_id=active_id,
+            id=active_id,
             name="active",
             started_at=datetime.now(timezone.utc),
             ended_at=None,
             metadata={},
         )
         ended_session = Session(
-            session_id=ended_id,
+            id=ended_id,
             name="ended",
             started_at=datetime.now(timezone.utc),
             ended_at=datetime.now(timezone.utc),
@@ -166,7 +166,7 @@ class TestSessionRepository:
         # List only active sessions
         active_sessions = repository.list_active()
         assert len(active_sessions) == 1
-        assert active_sessions[0].session_id == active_id
+        assert active_sessions[0].id == active_id
         assert active_sessions[0].is_active is True
 
     def test_list_sessions_by_name_pattern(self, repository: SessionRepository) -> None:
@@ -176,21 +176,21 @@ class TestSessionRepository:
         other_id = ULID()
 
         session1 = Session(
-            session_id=test1_id,
+            id=test1_id,
             name="test_001",
             started_at=datetime.now(timezone.utc),
             ended_at=None,
             metadata={},
         )
         session2 = Session(
-            session_id=test2_id,
+            id=test2_id,
             name="test_002",
             started_at=datetime.now(timezone.utc),
             ended_at=None,
             metadata={},
         )
         session3 = Session(
-            session_id=other_id,
+            id=other_id,
             name="other_session",
             started_at=datetime.now(timezone.utc),
             ended_at=None,
@@ -205,7 +205,7 @@ class TestSessionRepository:
         expected_matching_count = 2
         test_sessions = repository.list_by_name_pattern("test_%")
         assert len(test_sessions) == expected_matching_count
-        test_ids = {s.session_id for s in test_sessions}
+        test_ids = {s.id for s in test_sessions}
         assert test1_id in test_ids
         assert test2_id in test_ids
         assert other_id not in test_ids
@@ -214,7 +214,7 @@ class TestSessionRepository:
         """Test deleting a session."""
         session_id = ULID()
         session = Session(
-            session_id=session_id,
+            id=session_id,
             name="to_delete",
             started_at=datetime.now(timezone.utc),
             ended_at=None,
@@ -249,7 +249,7 @@ class TestSessionRepository:
         }
 
         session = Session(
-            session_id=session_id,
+            id=session_id,
             name="metadata_test",
             started_at=datetime.now(timezone.utc),
             ended_at=None,

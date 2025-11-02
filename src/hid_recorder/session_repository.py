@@ -2,6 +2,7 @@
 
 import json
 from datetime import datetime
+from sqlite3 import Row
 
 from ulid import ULID
 
@@ -38,11 +39,11 @@ class SessionRepository:
             conn.execute(
                 """
                 INSERT INTO sessions
-                    (session_id, name, started_at, ended_at, metadata)
+                    (id, name, started_at, ended_at, metadata)
                 VALUES (?, ?, ?, ?, ?)
                 """,
                 (
-                    str(session.session_id),
+                    str(session.id),
                     session.name,
                     session.started_at,
                     session.ended_at,
@@ -62,9 +63,9 @@ class SessionRepository:
         with self.db_manager as conn:
             cursor = conn.execute(
                 """
-                SELECT session_id, name, started_at, ended_at, metadata
+                SELECT id, name, started_at, ended_at, metadata
                 FROM sessions
-                WHERE session_id = ?
+                WHERE id = ?
                 """,
                 (str(session_id),),
             )
@@ -87,7 +88,7 @@ class SessionRepository:
                 """
                 UPDATE sessions
                 SET ended_at = ?
-                WHERE session_id = ?
+                WHERE id = ?
                 """,
                 (ended_at, str(session_id)),
             )
@@ -101,7 +102,7 @@ class SessionRepository:
         with self.db_manager as conn:
             cursor = conn.execute(
                 """
-                SELECT session_id, name, started_at, ended_at, metadata
+                SELECT id, name, started_at, ended_at, metadata
                 FROM sessions
                 ORDER BY started_at DESC
                 """
@@ -119,7 +120,7 @@ class SessionRepository:
         with self.db_manager as conn:
             cursor = conn.execute(
                 """
-                SELECT session_id, name, started_at, ended_at, metadata
+                SELECT id, name, started_at, ended_at, metadata
                 FROM sessions
                 WHERE ended_at IS NULL
                 ORDER BY started_at DESC
@@ -141,7 +142,7 @@ class SessionRepository:
         with self.db_manager as conn:
             cursor = conn.execute(
                 """
-                SELECT session_id, name, started_at, ended_at, metadata
+                SELECT id, name, started_at, ended_at, metadata
                 FROM sessions
                 WHERE name LIKE ?
                 ORDER BY started_at DESC
@@ -165,26 +166,19 @@ class SessionRepository:
             conn.execute(
                 """
                 DELETE FROM sessions
-                WHERE session_id = ?
+                WHERE id = ?
                 """,
                 (str(session_id),),
             )
 
-    def _row_to_session(self, row: tuple) -> Session:  # type: ignore[type-arg]
+    def _row_to_session(self, row: Row) -> Session:
         """Convert a database row to a Session object.
 
         Args:
-            row: Database row tuple (session_id, name, started_at, ended_at, metadata).
+            row: Database row (id, name, started_at, ended_at, metadata).
 
         Returns:
             Session object constructed from the row data.
         """
-        session_id_str, name, started_at, ended_at, metadata_str = row
-
-        return Session(
-            session_id=ULID.from_str(session_id_str),
-            name=name,
-            started_at=started_at,
-            ended_at=ended_at,
-            metadata=json.loads(metadata_str),
-        )
+        metadata = json.loads(row["metadata"]) if row["metadata"] else {}
+        return Session.model_validate(dict(row, metadata=metadata))

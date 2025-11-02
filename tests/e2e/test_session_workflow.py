@@ -119,7 +119,7 @@ def test_interceptor_records_events_with_session_context(
 
     async def main() -> None:
         async with recorder.session(name="interceptor_context") as ctx:
-            session_id = ctx.session.session_id
+            session_id = ctx.session.id
             dispatcher = InlineEventDispatcher(hooks=[ctx.hook])
             interceptor = HIDInterceptor(dispatcher=dispatcher, device_class=FakeDevice)
 
@@ -132,9 +132,9 @@ def test_interceptor_records_events_with_session_context(
         stored_events = recorder.get_events(session_id)
         expected_event_count = 2
         assert len(stored_events) == expected_event_count
-        assert stored_events[0].code_name == "KEY_A"
-        assert stored_events[0].value == 1
-        assert stored_events[1].value == 0
+        assert stored_events[0].event.code_name == "KEY_A"
+        assert stored_events[0].event.value == 1
+        assert stored_events[1].event.value == 0
 
         completed_session = recorder.get_session(session_id)
         assert completed_session is not None
@@ -169,7 +169,7 @@ def test_interceptor_session_handle_run_without_context(
         ctx = await recorder.session(
             name="interceptor_handle", metadata={"mode": "manual"}
         )
-        session_id = ctx.session.session_id
+        session_id = ctx.session.id
         dispatcher = InlineEventDispatcher(hooks=[ctx.hook])
         interceptor = HIDInterceptor(dispatcher=dispatcher, device_class=FakeDevice)
 
@@ -188,6 +188,6 @@ def test_interceptor_session_handle_run_without_context(
         stored_events = recorder.get_events(session_id)
         expected_event_count = 1
         assert len(stored_events) == expected_event_count
-        assert stored_events[0].code_name == "REL_X"
+        assert stored_events[0].event.code_name == "REL_X"
 
     asyncio.run(main())

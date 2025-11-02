@@ -4,11 +4,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+from hid_interceptor import KeyEvent, RelEvent
 from ulid import ULID
 
 from hid_recorder.database import DatabaseManager
 from hid_recorder.event_repository import EventRepository
-from hid_recorder.models import Event, Session
+from hid_recorder.models import EventItem, Session
 from hid_recorder.session_repository import SessionRepository
 
 
@@ -37,7 +38,7 @@ class TestEventRepository:
     def test_session(self, session_repository: SessionRepository) -> Session:
         """Create a test session."""
         session = Session(
-            session_id=ULID(),
+            id=ULID(),
             name="test_session",
             started_at=datetime.now(timezone.utc),
             ended_at=None,
@@ -46,7 +47,7 @@ class TestEventRepository:
         session_repository.create(session)
         return session
 
-    def test_create_event(
+    def test_create_event_item(
         self,
         event_repository: EventRepository,
         test_session: Session,
@@ -54,15 +55,16 @@ class TestEventRepository:
     ) -> None:
         """Test creating a new event."""
         timestamp = 1234567890.123456
-        event = Event(
-            event_id=ULID(),
-            session_id=test_session.session_id,
-            timestamp=timestamp,
-            device="/dev/input/event0",
-            kind="KEY",
-            code=30,
-            code_name="KEY_A",
-            value=1,
+        event = EventItem(
+            id=ULID(),
+            session_id=test_session.id,
+            event=KeyEvent(
+                timestamp=timestamp,
+                device="/dev/input/event0",
+                code=30,
+                code_name="KEY_A",
+                value=1,
+            ),
         )
 
         event_id = event_repository.create(event)
@@ -74,12 +76,12 @@ class TestEventRepository:
         expected_code = 30
         with db_manager as conn:
             cursor = conn.execute(
-                "SELECT session_id, device, kind, code FROM events WHERE event_id = ?",
+                "SELECT session_id, device, kind, code FROM events WHERE id = ?",
                 (str(event_id),),
             )
             result = cursor.fetchone()
             assert result is not None
-            assert result[0] == str(test_session.session_id)
+            assert result[0] == str(test_session.id)
             assert result[1] == "/dev/input/event0"
             assert result[2] == "KEY"
             assert result[3] == expected_code
@@ -91,25 +93,27 @@ class TestEventRepository:
     ) -> None:
         """Test retrieving all events for a session."""
         # Create multiple events
-        event1 = Event(
-            event_id=ULID(),
-            session_id=test_session.session_id,
-            timestamp=1000.0,
-            device="/dev/input/event0",
-            kind="KEY",
-            code=30,
-            code_name="KEY_A",
-            value=1,
+        event1 = EventItem(
+            id=ULID(),
+            session_id=test_session.id,
+            event=KeyEvent(
+                timestamp=1000.0,
+                device="/dev/input/event0",
+                code=30,
+                code_name="KEY_A",
+                value=1,
+            ),
         )
-        event2 = Event(
-            event_id=ULID(),
-            session_id=test_session.session_id,
-            timestamp=1001.0,
-            device="/dev/input/event0",
-            kind="KEY",
-            code=30,
-            code_name="KEY_A",
-            value=0,
+        event2 = EventItem(
+            id=ULID(),
+            session_id=test_session.id,
+            event=KeyEvent(
+                timestamp=1001.0,
+                device="/dev/input/event0",
+                code=30,
+                code_name="KEY_A",
+                value=0,
+            ),
         )
 
         event_repository.create(event1)
@@ -119,13 +123,13 @@ class TestEventRepository:
         expected_event_count = 2
         first_timestamp = 1000.0
         second_timestamp = 1001.0
-        events = event_repository.get_by_session(test_session.session_id)
+        events = event_repository.get_by_session(test_session.id)
         assert len(events) == expected_event_count
-        assert all(e.session_id == test_session.session_id for e in events)
+        assert all(e.session_id == test_session.id for e in events)
 
         # Verify ordering by timestamp
-        assert events[0].timestamp == first_timestamp
-        assert events[1].timestamp == second_timestamp
+        assert events[0].event.timestamp == first_timestamp
+        assert events[1].event.timestamp == second_timestamp
 
     def test_get_events_for_nonexistent_session(
         self, event_repository: EventRepository
@@ -142,25 +146,27 @@ class TestEventRepository:
     ) -> None:
         """Test retrieving events filtered by device."""
         # Create events from different devices
-        event_keyboard = Event(
-            event_id=ULID(),
-            session_id=test_session.session_id,
-            timestamp=1000.0,
-            device="/dev/input/event0",
-            kind="KEY",
-            code=30,
-            code_name="KEY_A",
-            value=1,
+        event_keyboard = EventItem(
+            id=ULID(),
+            session_id=test_session.id,
+            event=KeyEvent(
+                timestamp=1000.0,
+                device="/dev/input/event0",
+                code=30,
+                code_name="KEY_A",
+                value=1,
+            ),
         )
-        event_mouse = Event(
-            event_id=ULID(),
-            session_id=test_session.session_id,
-            timestamp=1001.0,
-            device="/dev/input/event1",
-            kind="REL",
-            code=0,
-            code_name="REL_X",
-            value=10,
+        event_mouse = EventItem(
+            id=ULID(),
+            session_id=test_session.id,
+            event=RelEvent(
+                timestamp=1001.0,
+                device="/dev/input/event1",
+                code=0,
+                code_name="REL_X",
+                value=10,
+            ),
         )
 
         event_repository.create(event_keyboard)
@@ -168,11 +174,11 @@ class TestEventRepository:
 
         # Filter by keyboard device
         keyboard_events = event_repository.get_by_session(
-            test_session.session_id, device_filter="/dev/input/event0"
+            test_session.id, device_filter="/dev/input/event0"
         )
         assert len(keyboard_events) == 1
-        assert keyboard_events[0].device == "/dev/input/event0"
-        assert keyboard_events[0].kind == "KEY"
+        assert keyboard_events[0].event.device == "/dev/input/event0"
+        assert keyboard_events[0].event.kind.value == "KEY"
 
     def test_get_events_by_session_with_kind_filter(
         self,
@@ -181,36 +187,36 @@ class TestEventRepository:
     ) -> None:
         """Test retrieving events filtered by kind."""
         # Create events of different kinds
-        event_key = Event(
-            event_id=ULID(),
-            session_id=test_session.session_id,
-            timestamp=1000.0,
-            device="/dev/input/event0",
-            kind="KEY",
-            code=30,
-            code_name="KEY_A",
-            value=1,
+        event_key = EventItem(
+            id=ULID(),
+            session_id=test_session.id,
+            event=KeyEvent(
+                timestamp=1000.0,
+                device="/dev/input/event0",
+                code=30,
+                code_name="KEY_A",
+                value=1,
+            ),
         )
-        event_rel = Event(
-            event_id=ULID(),
-            session_id=test_session.session_id,
-            timestamp=1001.0,
-            device="/dev/input/event0",
-            kind="REL",
-            code=0,
-            code_name="REL_X",
-            value=10,
+        event_rel = EventItem(
+            id=ULID(),
+            session_id=test_session.id,
+            event=RelEvent(
+                timestamp=1001.0,
+                device="/dev/input/event0",
+                code=0,
+                code_name="REL_X",
+                value=10,
+            ),
         )
 
         event_repository.create(event_key)
         event_repository.create(event_rel)
 
         # Filter by KEY kind
-        key_events = event_repository.get_by_session(
-            test_session.session_id, kind_filter="KEY"
-        )
+        key_events = event_repository.get_by_session(test_session.id, kind_filter="KEY")
         assert len(key_events) == 1
-        assert key_events[0].kind == "KEY"
+        assert key_events[0].event.kind.value == "KEY"
 
     def test_count_events_by_session(
         self,
@@ -221,20 +227,21 @@ class TestEventRepository:
         # Create multiple events
         expected_event_count = 3
         for i in range(expected_event_count):
-            event = Event(
-                event_id=ULID(),
-                session_id=test_session.session_id,
-                timestamp=1000.0 + i,
-                device="/dev/input/event0",
-                kind="KEY",
-                code=30,
-                code_name="KEY_A",
-                value=1,
+            event = EventItem(
+                id=ULID(),
+                session_id=test_session.id,
+                event=KeyEvent(
+                    timestamp=1000.0 + i,
+                    device="/dev/input/event0",
+                    code=30,
+                    code_name="KEY_A",
+                    value=1,
+                ),
             )
             event_repository.create(event)
 
         # Count events
-        count = event_repository.count_by_session(test_session.session_id)
+        count = event_repository.count_by_session(test_session.id)
         assert count == expected_event_count
 
     def test_count_events_for_nonexistent_session(
@@ -255,27 +262,28 @@ class TestEventRepository:
         # Create events
         expected_event_count = 2
         for i in range(expected_event_count):
-            event = Event(
-                event_id=ULID(),
-                session_id=test_session.session_id,
-                timestamp=1000.0 + i,
-                device="/dev/input/event0",
-                kind="KEY",
-                code=30,
-                code_name="KEY_A",
-                value=1,
+            event = EventItem(
+                id=ULID(),
+                session_id=test_session.id,
+                event=KeyEvent(
+                    timestamp=1000.0 + i,
+                    device="/dev/input/event0",
+                    code=30,
+                    code_name="KEY_A",
+                    value=1,
+                ),
             )
             event_repository.create(event)
 
         # Verify events exist
-        count_before = event_repository.count_by_session(test_session.session_id)
+        count_before = event_repository.count_by_session(test_session.id)
         assert count_before == expected_event_count
 
         # Delete session
-        session_repository.delete(test_session.session_id)
+        session_repository.delete(test_session.id)
 
         # Verify events were deleted
-        count_after = event_repository.count_by_session(test_session.session_id)
+        count_after = event_repository.count_by_session(test_session.id)
         assert count_after == 0
 
     def test_event_id_is_auto_assigned(
@@ -284,25 +292,27 @@ class TestEventRepository:
         test_session: Session,
     ) -> None:
         """Test that event_id is auto-assigned and increments."""
-        event1 = Event(
-            event_id=ULID(),
-            session_id=test_session.session_id,
-            timestamp=1000.0,
-            device="/dev/input/event0",
-            kind="KEY",
-            code=30,
-            code_name="KEY_A",
-            value=1,
+        event1 = EventItem(
+            id=ULID(),
+            session_id=test_session.id,
+            event=KeyEvent(
+                timestamp=1000.0,
+                device="/dev/input/event0",
+                code=30,
+                code_name="KEY_A",
+                value=1,
+            ),
         )
-        event2 = Event(
-            event_id=ULID(),
-            session_id=test_session.session_id,
-            timestamp=1001.0,
-            device="/dev/input/event0",
-            kind="KEY",
-            code=31,
-            code_name="KEY_S",
-            value=1,
+        event2 = EventItem(
+            id=ULID(),
+            session_id=test_session.id,
+            event=KeyEvent(
+                timestamp=1001.0,
+                device="/dev/input/event0",
+                code=31,
+                code_name="KEY_S",
+                value=1,
+            ),
         )
 
         id1 = event_repository.create(event1)

@@ -39,8 +39,8 @@ class TestRecorder:
 
         session = recorder.start_session(name=name, metadata=metadata)
 
-        assert session.session_id is not None
-        assert isinstance(session.session_id, ULID)
+        assert session.id is not None
+        assert isinstance(session.id, ULID)
         assert session.name == name
         assert session.metadata == metadata
         assert session.is_active is True
@@ -51,10 +51,10 @@ class TestRecorder:
         session = recorder.start_session(name="test", metadata={})
         assert session.is_active is True
 
-        recorder.end_session(session.session_id)
+        recorder.end_session(session.id)
 
         # Retrieve and verify session is ended
-        ended_session = recorder.get_session(session.session_id)
+        ended_session = recorder.get_session(session.id)
         assert ended_session is not None
         assert ended_session.is_active is False
         assert ended_session.ended_at is not None
@@ -63,10 +63,10 @@ class TestRecorder:
         """Test retrieving a session by ID."""
         created_session = recorder.start_session(name="test", metadata={})
 
-        retrieved_session = recorder.get_session(created_session.session_id)
+        retrieved_session = recorder.get_session(created_session.id)
 
         assert retrieved_session is not None
-        assert retrieved_session.session_id == created_session.session_id
+        assert retrieved_session.id == created_session.id
         assert retrieved_session.name == "test"
 
     def test_get_session_returns_none_for_nonexistent_id(
@@ -87,21 +87,21 @@ class TestRecorder:
         sessions = recorder.list_sessions()
 
         assert len(sessions) == expected_session_count
-        session_ids = {s.session_id for s in sessions}
-        assert session1.session_id in session_ids
-        assert session2.session_id in session_ids
-        assert session3.session_id in session_ids
+        session_ids = {s.id for s in sessions}
+        assert session1.id in session_ids
+        assert session2.id in session_ids
+        assert session3.id in session_ids
 
     def test_list_active_sessions_only_returns_active(self, recorder: Recorder) -> None:
         """Test listing only active sessions."""
         active_session = recorder.start_session(name="active", metadata={})
         ended_session = recorder.start_session(name="ended", metadata={})
-        recorder.end_session(ended_session.session_id)
+        recorder.end_session(ended_session.id)
 
         active_sessions = recorder.list_active_sessions()
 
         assert len(active_sessions) == 1
-        assert active_sessions[0].session_id == active_session.session_id
+        assert active_sessions[0].id == active_session.id
 
     def test_session_context_manager_creates_and_ends_session(
         self, recorder: Recorder
@@ -113,7 +113,7 @@ class TestRecorder:
             metadata = {"key": "value"}
 
             async with recorder.session(name=name, metadata=metadata) as ctx:
-                session_id = ctx.session.session_id
+                session_id = ctx.session.id
                 assert ctx.session.name == name
                 assert ctx.session.metadata == metadata
                 assert ctx.session.is_active is True
@@ -134,7 +134,7 @@ class TestRecorder:
             finally:
                 await handle.close()
 
-            ended_session = recorder.get_session(handle.session.session_id)
+            ended_session = recorder.get_session(handle.session.id)
             assert ended_session is not None
             assert ended_session.is_active is False
 
@@ -152,7 +152,7 @@ class TestRecorder:
             async def session_with_error() -> None:
                 nonlocal session_id
                 async with recorder.session(name="test", metadata={}) as ctx:
-                    session_id = ctx.session.session_id
+                    session_id = ctx.session.id
                     raise RuntimeError(error_message)
 
             with pytest.raises(RuntimeError, match=error_message):
@@ -170,7 +170,7 @@ class TestRecorder:
         session = recorder.start_session(name="test", metadata={})
 
         # Initially no events
-        events = recorder.get_events(session.session_id)
+        events = recorder.get_events(session.id)
         assert events == []
 
     def test_get_events_returns_empty_for_nonexistent_session(
@@ -189,10 +189,10 @@ class TestRecorder:
 
         # Retrieve session with second instance
         recorder2 = Recorder(db_path)
-        retrieved_session = recorder2.get_session(session.session_id)
+        retrieved_session = recorder2.get_session(session.id)
 
         assert retrieved_session is not None
-        assert retrieved_session.session_id == session.session_id
+        assert retrieved_session.id == session.id
 
     def test_start_session_with_default_empty_metadata(
         self, recorder: Recorder
@@ -213,14 +213,14 @@ class TestRecorder:
             value=1,
         )
 
-        recorder.record_event(input_event, session.session_id)
+        recorder.record_event(input_event, session.id)
 
         # Verify event was saved
-        events = recorder.get_events(session.session_id)
+        events = recorder.get_events(session.id)
         assert len(events) == 1
-        assert events[0].device == "/dev/input/event0"
-        assert events[0].kind == "KEY"
-        assert events[0].code_name == "KEY_A"
+        assert events[0].event.device == "/dev/input/event0"
+        assert events[0].event.kind.value == "KEY"
+        assert events[0].event.code_name == "KEY_A"
 
     def test_record_multiple_events_to_session(self, recorder: Recorder) -> None:
         """Test recording multiple events to a session."""
@@ -234,7 +234,7 @@ class TestRecorder:
                 code_name="KEY_A",
                 value=1,
             ),
-            session.session_id,
+            session.id,
         )
         recorder.record_event(
             RelEvent(
@@ -244,15 +244,15 @@ class TestRecorder:
                 code_name="REL_X",
                 value=10,
             ),
-            session.session_id,
+            session.id,
         )
 
         # Verify both events were saved
         expected_event_count = 2
-        events = recorder.get_events(session.session_id)
+        events = recorder.get_events(session.id)
         assert len(events) == expected_event_count
-        assert events[0].kind == "KEY"
-        assert events[1].kind == "REL"
+        assert events[0].event.kind.value == "KEY"
+        assert events[1].event.kind.value == "REL"
 
     def test_record_event_returns_event_id(self, recorder: Recorder) -> None:
         """Test that record_event returns the assigned event_id."""
@@ -265,7 +265,7 @@ class TestRecorder:
             value=1,
         )
 
-        event_id = recorder.record_event(input_event, session.session_id)
+        event_id = recorder.record_event(input_event, session.id)
 
         assert event_id is not None
         assert event_id > 0
@@ -283,7 +283,7 @@ class TestRecorder:
                 code_name="KEY_A",
                 value=1,
             ),
-            session1.session_id,
+            session1.id,
         )
         recorder.record_event(
             KeyEvent(
@@ -293,7 +293,7 @@ class TestRecorder:
                 code_name="KEY_A",
                 value=1,
             ),
-            session1.session_id,
+            session1.id,
         )
         recorder.record_event(
             KeyEvent(
@@ -303,14 +303,14 @@ class TestRecorder:
                 code_name="KEY_A",
                 value=1,
             ),
-            session2.session_id,
+            session2.id,
         )
 
         # Verify events are associated with correct sessions
         expected_session1_events = 2
         expected_session2_events = 1
-        session1_events = recorder.get_events(session1.session_id)
-        session2_events = recorder.get_events(session2.session_id)
+        session1_events = recorder.get_events(session1.id)
+        session2_events = recorder.get_events(session2.id)
 
         assert len(session1_events) == expected_session1_events
         assert len(session2_events) == expected_session2_events
@@ -335,9 +335,9 @@ class TestRecorder:
         )
 
         # Verify event was recorded to active session
-        events = recorder.get_events(session.session_id)
+        events = recorder.get_events(session.id)
         assert len(events) == 1
-        assert events[0].code_name == "KEY_A"
+        assert events[0].event.code_name == "KEY_A"
 
     def test_create_hook_raises_when_no_active_session(
         self, recorder: Recorder
@@ -372,11 +372,11 @@ class TestRecorder:
                         value=1,
                     )
                 )
-                session_id = ctx.session.session_id
+                session_id = ctx.session.id
 
             events = recorder.get_events(session_id)
             assert len(events) == 1
-            assert events[0].code_name == "KEY_A"
+            assert events[0].event.code_name == "KEY_A"
 
         asyncio.run(main())
 
@@ -391,7 +391,7 @@ class TestRecorder:
                 return "done"
 
             async with recorder.session(name="run", metadata={}) as ctx:
-                session_id = ctx.session.session_id
+                session_id = ctx.session.id
                 result = await ctx.run(dummy_runner)
 
             assert result == "done"
